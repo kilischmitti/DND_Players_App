@@ -1,6 +1,6 @@
 /* Offline-Cache: Dateien der App werden beim ersten Öffnen gespeichert, online wird immer die neueste Version geladen.
    Bei einer neuen Version hier die Nummer erhöhen, dann lädt das iPad die neuen Dateien. */
-var CACHE = 'wizbolt-v4';
+var CACHE = 'wizbolt-v5';
 var FILES = ['./', 'index.html', 'style.css', 'manifest.json', 'js/data.js', 'js/flavor.js', 'js/dice.js', 'js/app.js', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return Promise.all(FILES.map(function (f) { return fetch(f, { cache: 'reload' }).then(function (r) { if (!r.ok) throw new Error(f); return c.put(f, r); }); })); }).then(function () { return self.skipWaiting(); })); });
 self.addEventListener('activate', function (e) {

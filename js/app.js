@@ -47,7 +47,9 @@
         if (!o.char || !o.char.migV) { CHAR.hitDiceMax = 5; ST.hitDice = Math.min(5, (+ST.hitDice || 0) + 1); }
       }
       CHAR.migV = 2;
+      if (!ST.inv) ST.inv = clone(window.WIZ_DEFAULT_INV);
     } catch (e) { /* kaputte Daten ignorieren, Standard bleibt */ }
+    if (!ST.inv) ST.inv = clone(window.WIZ_DEFAULT_INV);
   }
   var saveTimer = null, saveFailed = false;
   function save() {
@@ -246,7 +248,7 @@
   }
 
   /* ---------- Kopfbereich und Wurf-Anzeige ---------- */
-  var TABS = [['held', 'Held'], ['zauber', 'Zauber'], ['wuerfel', 'Würfel'], ['merkmale', 'Merkmale'], ['notizen', 'Notizen'], ['daten', 'Daten']];
+  var TABS = [['held', 'Held'], ['zauber', 'Zauber'], ['wuerfel', 'Würfel'], ['merkmale', 'Merkmale'], ['inventar', 'Inventar'], ['notizen', 'Notizen'], ['daten', 'Daten']];
   function renderHead() {
     var el = $('top'); el.innerHTML = '';
     var modeBtns = [['dis', 'Nachteil'], ['', 'Normal'], ['adv', 'Vorteil']].map(function (m) {
@@ -608,6 +610,137 @@
     });
   }
 
+
+  /* ---------- Tab: Inventar ---------- */
+  var LOC = [['body', 'Am Körper'], ['pack', 'Im Rucksack'], ['misc', 'Sonstiges']];
+  var COINS = [['PM', 'Platin', 10], ['GM', 'Gold', 1], ['EM', 'Elektrum', 0.5], ['SM', 'Silber', 0.1], ['KM', 'Kupfer', 0.01]];
+  function fmtW(n) { return (Math.round(n * 100) / 100).toString().replace('.', ','); }
+  function loadLimits() {
+    var str = CHAR.abilities.STR, con = CHAR.abilities.CON;
+    return { belastet: Math.round((15 * str + 10 * con) / 2), stark: +CHAR.heavyLoad || 0, traglast: 15 * str, max: 30 * str };
+  }
+  function totalLoad() { return ST.inv.items.reduce(function (a, it) { return a + (it.counts !== false ? (+it.weight || 0) : 0); }, 0); }
+  function loadStatus(w, L) {
+    if (w > L.max) return ['Über dem Maximum', 'over'];
+    if (L.stark && w >= L.stark) return ['Stark belastet', 'heavy'];
+    if (w >= L.belastet) return ['Belastet', 'warn'];
+    return ['Nicht belastet', 'ok'];
+  }
+  function invCtx() { return ui.inv || (ui.inv = { loc: 'all', q: '' }); }
+  function renderInventory(root) {
+    var INV = ST.inv, L = loadLimits(), W = totalLoad(), stat = loadStatus(W, L), c = invCtx();
+    var scale = Math.max(L.max, W) || 1;
+    function seg(from, to, cls) { return h('i', { class: 'seg ' + cls, style: 'left:' + (from / scale * 100) + '%;width:' + (Math.max(0, to - from) / scale * 100) + '%' }); }
+    var bar = h('div', { class: 'loadbar', role: 'img', 'aria-label': 'Gesamtlast ' + fmtW(W) + ' von maximal ' + fmtW(L.max) }, [
+      seg(0, L.belastet, 'ok'), seg(L.belastet, L.stark || L.max, 'warn'), L.stark ? seg(L.stark, L.max, 'heavy') : null, seg(L.max, scale, 'over'),
+      h('b', { class: 'fill', style: 'width:' + Math.min(100, W / scale * 100) + '%' })
+    ]);
+    root.appendChild(h('section', { class: 'panel load ' + stat[1] }, [
+      h('div', { class: 'btnrow', style: 'justify-content:space-between;align-items:flex-end' }, [
+        h('div', {}, [h('span', { class: 'big num', text: fmtW(W) }), h('span', { class: 'muted', text: '  Gesamtlast' })]),
+        h('b', { class: 'loadstate', text: stat[0] })
+      ]),
+      bar,
+      h('div', { class: 'loadinfo' }, [
+        h('span', {}, ['Belastet ab ', h('b', { text: fmtW(L.belastet) })]),
+        h('span', {}, ['Stark belastet ab ', h('b', { text: L.stark ? fmtW(L.stark) : '–' })]),
+        h('span', {}, ['Traglast ', h('b', { text: fmtW(L.traglast) })]),
+        h('span', {}, ['Max. Anheben ', h('b', { text: fmtW(L.max) })])
+      ]),
+      h('p', { class: 'muted small', style: 'margin:8px 0 0', text: 'Belastet ab = (Stärke × 15 + Konstitution × 10) / 2, Traglast = Stärke × 15, Max. Anheben = Stärke × 30. Folgen der Belastung (Bewegung, Nachteil) rechnet die App nicht ein.' })
+    ]));
+
+    var coinTotal = COINS.reduce(function (a, k) { return a + (INV.coins[k[0]] || 0) * k[2]; }, 0);
+    root.appendChild(h('section', { class: 'panel', style: 'margin-top:16px' }, [
+      h('div', { class: 'btnrow', style: 'justify-content:space-between' }, [h('h2', { style: 'margin:0', text: 'Münzen' }), h('span', { class: 'muted', text: 'Wert gesamt: ' + fmtW(coinTotal) + ' GM' })]),
+      h('div', { class: 'coins' }, COINS.map(function (k) {
+        return h('div', { class: 'coin' }, [
+          h('span', { class: 'muted small', text: k[0] + ' ' + k[1] }),
+          h('div', { class: 'stepper' }, [
+            h('button', { class: 'btn', 'aria-label': k[0] + ' verringern', text: '−', onclick: function () { INV.coins[k[0]] = Math.max(0, (INV.coins[k[0]] || 0) - 1); save(); render(); } }),
+            h('input', { type: 'number', inputmode: 'numeric', min: '0', value: String(INV.coins[k[0]] || 0), 'aria-label': k[1] + 'münzen', onchange: function (e) { INV.coins[k[0]] = Math.max(0, parseInt(e.target.value, 10) || 0); save(); render(); } }),
+            h('button', { class: 'btn', 'aria-label': k[0] + ' erhöhen', text: '+', onclick: function () { INV.coins[k[0]] = (INV.coins[k[0]] || 0) + 1; save(); render(); } })
+          ])
+        ]);
+      })),
+      h('p', { class: 'muted small', style: 'margin:8px 0 0', text: 'Umrechnung: 1 PM = 10 GM, 1 EM = 0,5 GM, 1 SM = 0,1 GM, 1 KM = 0,01 GM. Münzen zählen nicht zur Last.' })
+    ]));
+
+    var chips = [['all', 'Alle']].concat(LOC);
+    var search = h('input', { type: 'text', class: 'search', placeholder: 'Gegenstand suchen', 'aria-label': 'Gegenstand suchen', value: c.q, oninput: function (e) {
+      c.q = e.target.value; var q = c.q.toLowerCase();
+      Array.prototype.forEach.call(document.querySelectorAll('.inv li'), function (li) { li.hidden = !!q && (li.getAttribute('data-n') || '').indexOf(q) < 0; });
+    } });
+    root.appendChild(h('div', { class: 'btnrow', style: 'justify-content:space-between;margin:18px 0 8px' }, [
+      h('h2', { style: 'margin:0', text: 'Gegenstände (' + INV.items.length + ')' }),
+      h('button', { class: 'btn brass', text: 'Neuer Gegenstand', onclick: function () { itemModal(null); } })
+    ]));
+    root.appendChild(h('div', { class: 'filters' }, chips.map(function (x) {
+      return h('button', { class: 'chip', 'aria-pressed': String(c.loc === x[0]), text: x[1], onclick: function () { c.loc = x[0]; render(); } });
+    }).concat([search])));
+
+    var unplaced = INV.items.filter(function (i) { return i.where === 'misc'; }).length;
+    if (unplaced === INV.items.length && INV.items.length) root.appendChild(h('p', { class: 'muted small', text: 'Alle Gegenstände stehen noch unter „Sonstiges“. Tippe bei einem Gegenstand auf die Ortstaste (Sonst. / Rucksack / Körper), um ihn einzuordnen.' }));
+
+    LOC.forEach(function (lc) {
+      if (c.loc !== 'all' && c.loc !== lc[0]) return;
+      var list = INV.items.filter(function (i) { return i.where === lc[0]; });
+      if (!list.length) { if (c.loc !== 'all') root.appendChild(h('div', { class: 'empty', text: 'Hier liegt noch nichts.' })); return; }
+      var sub = list.reduce(function (a, i) { return a + (i.counts !== false ? (+i.weight || 0) : 0); }, 0);
+      root.appendChild(h('div', { class: 'btnrow', style: 'justify-content:space-between;margin:14px 0 4px' }, [h('h3', { style: 'margin:0', text: lc[1] }), h('span', { class: 'muted small', text: list.length + ' Einträge, Last ' + fmtW(sub) })]));
+      root.appendChild(h('ul', { class: 'inv' }, list.map(invRow)));
+    });
+  }
+  function invRow(it) {
+    var q = invCtx().q.toLowerCase();
+    var li = h('li', { class: 'item' + (it.counts === false ? ' off' : ''), 'data-n': it.name.toLowerCase() });
+    if (q && it.name.toLowerCase().indexOf(q) < 0) li.hidden = true;
+    li.appendChild(h('label', { class: 'cnt', title: 'Zählt zur Last. Abwählen, wenn du den Gegenstand nicht bei dir trägst.' }, [h('input', { type: 'checkbox', checked: it.counts !== false, 'aria-label': it.name + ' zählt zur Last', onchange: function (e) { it.counts = e.target.checked; save(); render(); } })]));
+    li.appendChild(h('button', { class: 'nm', onclick: function () { itemModal(it); } }, [
+      it.mark ? h('i', { class: 'mk ' + it.mark, title: 'Farbmarkierung aus deinem Inventar-PDF' }) : null,
+      h('span', { text: it.name })
+    ]));
+    var order = ['misc', 'pack', 'body'], short = { misc: 'Sonst.', pack: 'Rucksack', body: 'Körper' };
+    li.appendChild(h('button', { class: 'btn sm ghost locbtn', title: 'Ort wechseln', text: short[it.where] || 'Sonst.', onclick: function () { it.where = order[(order.indexOf(it.where) + 1) % order.length]; save(); render(); } }));
+    function setQty(n) {
+      n = Math.max(0, n);
+      if (it.qty > 0 && it.weight) it.weight = Math.round(it.weight / it.qty * n * 100) / 100;
+      it.qty = n; save(); render();
+    }
+    li.appendChild(h('div', { class: 'stepper sm' }, [
+      h('button', { class: 'btn sm', 'aria-label': it.name + ' weniger', text: '−', onclick: function () { setQty(it.qty - 1); } }),
+      h('b', { text: it.qty + (it.unit || '') }),
+      h('button', { class: 'btn sm', 'aria-label': it.name + ' mehr', text: '+', onclick: function () { setQty(it.qty + 1); } })
+    ]));
+    li.appendChild(h('span', { class: 'w num', title: 'Gesamtgewicht der Zeile', text: it.weight === null || it.weight === undefined ? '–' : fmtW(it.weight) }));
+    return li;
+  }
+  function itemModal(it) {
+    var isNew = !it, d = it ? { name: it.name, qty: it.qty, unit: it.unit || '', weight: it.weight, where: it.where, counts: it.counts !== false } : { name: '', qty: 1, unit: '', weight: null, where: invCtx().loc === 'all' ? 'misc' : invCtx().loc, counts: true };
+    var name = h('input', { type: 'text', value: d.name, 'aria-label': 'Name', style: 'width:100%' });
+    var qty = h('input', { type: 'number', inputmode: 'numeric', min: '0', value: String(d.qty), 'aria-label': 'Anzahl' });
+    var unit = h('input', { type: 'text', value: d.unit, placeholder: 'z. B. m', 'aria-label': 'Einheit', style: 'width:80px' });
+    var wt = h('input', { type: 'text', inputmode: 'decimal', value: d.weight === null || d.weight === undefined ? '' : String(d.weight).replace('.', ','), placeholder: 'leer = keine Angabe', 'aria-label': 'Gesamtgewicht' });
+    var loc = h('select', { 'aria-label': 'Ort' }, LOC.map(function (l) { return h('option', { value: l[0], selected: l[0] === d.where, text: l[1] }); }));
+    var m = modal(isNew ? 'Neuer Gegenstand' : 'Gegenstand bearbeiten', h('div', { class: 'itemform' }, [
+      h('label', {}, [h('span', { class: 'muted small', text: 'Name' }), name]),
+      h('div', { class: 'btnrow' }, [h('label', {}, [h('span', { class: 'muted small', text: 'Anzahl' }), qty]), h('label', {}, [h('span', { class: 'muted small', text: 'Einheit' }), unit]), h('label', {}, [h('span', { class: 'muted small', text: 'Gesamtgewicht der Zeile' }), wt])]),
+      h('label', {}, [h('span', { class: 'muted small', text: 'Ort' }), loc]),
+      h('div', { class: 'btnrow', style: 'margin-top:14px' }, [
+        h('button', { class: 'btn brass', text: 'Speichern', onclick: function () {
+          var nm = name.value.trim(); if (!nm) { toast('Gib dem Gegenstand einen Namen.'); return; }
+          var w = wt.value.trim() === '' ? null : parseFloat(wt.value.replace(',', '.'));
+          if (w !== null && isNaN(w)) { toast('Gewicht als Zahl eingeben, z. B. 2,5.'); return; }
+          var rec = { name: nm, qty: Math.max(0, parseInt(qty.value, 10) || 0), unit: unit.value.trim(), weight: w, where: loc.value };
+          if (isNew) { ST.inv.items.unshift(Object.assign({ id: 'i' + Date.now(), counts: true, mark: '' }, rec)); } else { Object.assign(it, rec); }
+          save(); m.close(); render();
+        } }),
+        h('button', { class: 'btn ghost', text: 'Abbrechen', onclick: function () { m.close(); } }),
+        isNew ? null : h('button', { class: 'btn danger', text: 'Löschen', onclick: function () { ST.inv.items = ST.inv.items.filter(function (x) { return x !== it; }); save(); m.close(); render(); toast('„' + it.name + '“ gelöscht.'); } })
+      ])
+    ]));
+  }
+
   /* ---------- Tab: Notizen ---------- */
   function renderNotes(root) {
     root.appendChild(h('div', { class: 'btnrow', style: 'justify-content:space-between;margin-bottom:12px' }, [
@@ -701,7 +834,7 @@
     var y = window.scrollY;
     renderHead();
     var root = h('div'); var main = $('main'); main.innerHTML = '';
-    ({ held: renderHeld, zauber: renderSpells, wuerfel: renderDice, merkmale: renderFeatures, notizen: renderNotes, daten: renderData })[ui.tab](root);
+    ({ held: renderHeld, zauber: renderSpells, wuerfel: renderDice, merkmale: renderFeatures, inventar: renderInventory, notizen: renderNotes, daten: renderData })[ui.tab](root);
     main.appendChild(root);
     window.scrollTo(0, y);
     if (ui.flashLvl) { var fl = ui.flashLvl; setTimeout(function () { if (ui.flashLvl === fl) ui.flashLvl = null; }, 700); }
