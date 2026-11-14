@@ -42,7 +42,11 @@
     CHAR = clone(window.WIZ_DEFAULT_CHAR); ST = clone(window.WIZ_DEFAULT_STATE);
     try {
       var raw = localStorage.getItem(KEY);
-      if (raw) { var o = JSON.parse(raw); merge(CHAR, o.char); merge(ST, o.state); }
+      if (raw) {
+        var o = JSON.parse(raw); merge(CHAR, o.char); merge(ST, o.state);
+        if (!o.char || !o.char.migV) { CHAR.hitDiceMax = 5; ST.hitDice = Math.min(5, (+ST.hitDice || 0) + 1); }
+      }
+      CHAR.migV = 2;
     } catch (e) { /* kaputte Daten ignorieren, Standard bleibt */ }
   }
   var saveTimer = null, saveFailed = false;
@@ -113,6 +117,23 @@
     if (ui.drawer) renderDrawer();
   }
 
+  function rollInitiative() {
+    var pill = d20Pill('Initiative', mod('DEX'));
+    ST.initiative = pill.value; save();
+    showRoll('Initiative', 'Kampfreihenfolge: ' + pill.value, [pill]);
+    render();
+  }
+  function initiativeModal() {
+    var inp = h('input', { type: 'number', inputmode: 'numeric', value: ST.initiative === null || ST.initiative === undefined ? '' : String(ST.initiative), 'aria-label': 'Initiative', style: 'width:100%;font-size:28px;margin:8px 0 14px' });
+    var m = modal('Initiative', h('div', {}, [
+      h('p', { class: 'muted', text: 'Gesamtwert deines Wurfs (d20 ' + sg(mod('DEX')) + '). Du kannst auch einen echten Wurf von Hand eintragen.' }), inp,
+      h('div', { class: 'btnrow' }, [
+        h('button', { class: 'btn brass', text: 'Speichern', onclick: function () { var v = parseInt(inp.value, 10); ST.initiative = isNaN(v) ? null : v; save(); m.close(); render(); } }),
+        h('button', { class: 'btn spark', text: 'Neu würfeln', onclick: function () { m.close(); rollInitiative(); } }),
+        h('button', { class: 'btn ghost', text: 'Kampf beendet', onclick: function () { ST.initiative = null; save(); m.close(); render(); } })
+      ])
+    ]));
+  }
   function rollCheck(title, bonus, sub, forceMode) { showRoll(title, sub || '', [d20Pill('Wurf', bonus, forceMode)]); }
 
   /* Würfel eines Zauber-Eintrags */
@@ -192,7 +213,7 @@
   function longRest() {
     ST.hp = CHAR.hpMax; ST.temp = 0; ST.slotsUsed = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     ST.hitDice = Math.min(CHAR.hitDiceMax, ST.hitDice + Math.max(1, Math.floor(CHAR.hitDiceMax / 2)));
-    ST.recoveryUsed = false; ST.mageArmor = false; ST.death = { s: 0, f: 0 }; ui.concPrompt = null;
+    ST.recoveryUsed = false; ST.miUsed = false; ST.initiative = null; ST.mageArmor = false; ST.death = { s: 0, f: 0 }; ui.concPrompt = null;
     save(); render(); toast('Lange Rast: TP, Zauberplätze und Arkane Erholung zurückgesetzt.');
   }
   function recoveryModal() {
@@ -236,6 +257,7 @@
         h('h1', { text: CHAR.name }),
         h('p', { text: CHAR.race + ', ' + CHAR.klass + ', Stufe ' + CHAR.level })
       ]),
+      ST.initiative !== null && ST.initiative !== undefined ? h('button', { class: 'init-badge', title: 'Initiative ändern', onclick: initiativeModal }, [h('span', { class: 'v', text: String(ST.initiative) }), h('span', { class: 'l', text: 'Initiative' })]) : null,
       h('div', { class: 'mode', role: 'group', 'aria-label': 'Nächster d20-Wurf' }, modeBtns)
     ]);
     el.appendChild(row);
@@ -349,7 +371,7 @@
 
     root.appendChild(h('div', { class: 'grid vitals', style: 'margin-top:16px' }, [
       statBtn('Rüstungsklasse' + (ST.mageArmor ? ' (Magierrüstung)' : ''), armor(), function () { ST.mageArmor = !ST.mageArmor; save(); render(); toast(ST.mageArmor ? 'Magierrüstung aktiv: RK ' + (CHAR.mageArmorAC + mod('DEX')) : 'Magierrüstung beendet: RK ' + CHAR.baseAC); }, ST.mageArmor),
-      statBtn('Initiative würfeln', sg(mod('DEX')), function () { rollCheck('Initiative', mod('DEX')); }),
+      statBtn(ST.initiative !== null && ST.initiative !== undefined ? 'Initiative (tippen: ändern)' : 'Initiative würfeln', ST.initiative !== null && ST.initiative !== undefined ? ST.initiative : sg(mod('DEX')), function () { if (ST.initiative !== null && ST.initiative !== undefined) initiativeModal(); else rollInitiative(); }, ST.initiative !== null && ST.initiative !== undefined),
       statBtn('Bewegungsrate', CHAR.speed),
       statBtn('Übungsbonus', sg(pb())),
       statBtn('Zauber-SG', spellDC()),
@@ -551,12 +573,37 @@
   }
 
   /* ---------- Tab: Merkmale ---------- */
+  var MI_KLASSEN = { 'Barde': 'CHA', 'Druide': 'WIS', 'Kleriker': 'WIS', 'Magier': 'INT', 'Hexenmeister': 'CHA', 'Zauberer': 'CHA' };
+  function miPanel() {
+    var mi = ST.mi, abil = MI_KLASSEN[mi.klass] || null;
+    var sel = h('select', { 'aria-label': 'Klasse', onchange: function (e) { mi.klass = e.target.value; save(); render(); } },
+      [''].concat(Object.keys(MI_KLASSEN)).map(function (k) { return h('option', { value: k, selected: k === mi.klass, text: k || 'Klasse wählen' }); }));
+    function field(label, key, i) {
+      var arr = key === 'cantrips';
+      return h('label', { class: 'mi-f' }, [h('span', { class: 'muted small', text: label }), h('input', { type: 'text', value: arr ? mi.cantrips[i] : mi[key], oninput: function (e) { if (arr) mi.cantrips[i] = e.target.value; else mi[key] = e.target.value; save(); } })]);
+    }
+    var bonus = abil ? mod(abil) : null;
+    var calc = abil ? h('div', { class: 'btnrow', style: 'margin-top:10px' }, [
+      h('span', { text: 'Zauberattribut ' + abilShort(abil) + ', SG ' + (8 + pb() + bonus) + ', Angriff ' + sg(pb() + bonus) }),
+      h('button', { class: 'btn sm spark', text: 'Zauberangriff würfeln', onclick: function () { rollCheck('Eingeweihter der Magie, Zauberangriff', pb() + bonus, mi.klass); } })
+    ]) : h('p', { class: 'muted small', text: 'Wähle die Klasse, dann berechne ich Zauber-SG und Angriff aus dem passenden Attribut.' });
+    return h('section', { class: 'panel', style: 'margin-top:10px' }, [
+      h('h3', { text: 'Dein Eingeweihter der Magie' }), sel,
+      h('div', { class: 'mi-grid' }, [field('Zaubertrick 1', 'cantrips', 0), field('Zaubertrick 2', 'cantrips', 1), field('Zauber 1. Grades', 'spell')]),
+      calc,
+      h('div', { class: 'btnrow', style: 'margin-top:10px' }, [
+        h('span', { text: 'Zauber 1. Grades, 1× pro langer Rast ohne Platz: ' }),
+        h('button', { class: 'btn sm ' + (ST.miUsed ? 'ghost' : 'brass'), 'aria-pressed': String(!!ST.miUsed), text: ST.miUsed ? 'Verbraucht' : 'Verfügbar', onclick: function () { ST.miUsed = !ST.miUsed; save(); render(); } })
+      ])
+    ]);
+  }
   function renderFeatures(root) {
     window.WIZ_FEATURES.forEach(function (g) {
       root.appendChild(h('h2', { style: 'margin:18px 0 8px', text: g.group }));
       g.items.forEach(function (it) {
         var d = h('details', { class: 'feat' }, [h('summary', { text: it.name }), h('div', { class: 'in' }, [it.text, it.house ? h('div', { class: 'house', text: it.house }) : null, it.action === 'recovery' ? h('div', { style: 'margin-top:10px' }, [h('button', { class: 'btn sm', text: 'Arkane Erholung benutzen', onclick: recoveryModal })]) : null])]);
         root.appendChild(d);
+        if (it.action === 'mi') root.appendChild(miPanel());
       });
     });
   }

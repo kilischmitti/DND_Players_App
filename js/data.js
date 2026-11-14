@@ -37,6 +37,9 @@ window.WIZ_DEFAULT_STATE = {
   mageArmor: false,
   recoveryUsed: false,
   concentration: null,
+  initiative: null,
+  miUsed: false,
+  mi: { klass: '', cantrips: ['', ''], spell: '', used: false },
   prepared: {},
   notes: [],
   settings: { spellDamageBonus: 4, damageBonusOn: true }
@@ -342,7 +345,7 @@ window.WIZ_FEATURES = [
     items: [
       { name: 'Forscher (Hintergrund: Weiser)', text: 'Gelingt es dir nicht, dir Wissen anzueignen oder dich an Wissen zu erinnern, weißt du meist, wo und von wem du die benötigte Information bekommen kannst. In der Regel erhältst du diese aus einer Bibliothek, einer Schreibwerkstatt, einer Universität, von einem Kollegen oder einer anderen gelehrten Person oder Kreatur. Dein SL kann bestimmen, dass das Wissen, nach dem du suchst, an einem nahezu unerreichbaren Ort versteckt wurde oder es einfach nicht gefunden werden kann. Die tiefsten Geheimnisse des Multiversums ans Licht zu bringen, kann ein Abenteuer oder sogar eine ganze Kampagne erfordern.' },
       { name: 'Scharfer Verstand (Stufe 4)', text: 'Du bist außergewöhnlich gut darin, dir Zeiten, Richtungen und Einzelheiten einzuprägen, und erhältst folgende Vorzüge:\n\n• Erhöhe deine Intelligenz um 1 Punkt, bis zu einem maximalen Attribut von 20.\n• Du weißt immer, wo Norden ist.\n• Du weißt immer, wie viele Stunden es zum nächsten Sonnenauf- oder -untergang sind.\n• Du kannst dich genau an alles erinnern, was du im vergangenen Monat gesehen und gehört hast.', house: 'Ergänzung von Bene: Ich weiß in Städten und Gegenden immer, wo die Bibliothek, Tavernen, Rüstungsläden, Handwerkereien und Unterkünfte sind, egal ob sich die Stadt umbaut oder nicht.' },
-      { name: 'Eingeweihter der Magie (Heilkunft, 2024-Regeln)', text: 'Auf deinem Bogen als Talent notiert. Eine Beschreibung hast du mir nicht geschickt.' },
+      { name: 'Eingeweihter der Magie', action: 'mi', text: 'Du wählst eine Klasse: Barde, Druide, Kleriker, Magier, Hexenmeister oder Zauberer. Du erhältst zwei Zaubertricks und einen Zauber des 1. Grades aus der Spruchliste dieser Klasse.\n\nDen Zauber des 1. Grades kannst du einmal pro langer Rast kostenlos auf seinem niedrigsten Grad wirken. Spielst du diese Klasse selbst als Hauptklasse, kannst du ihn nach den 2024-Regeln auch mit deinen regulären Zauberplätzen wirken.\n\nZauberattribut: Intelligenz bei Magier, Weisheit bei Druide und Kleriker, Charisma bei Barde, Hexenmeister und Zauberer.' },
       { name: 'Unverwüstliches Zauberbuch (wundersamer Gegenstand, gewöhnlich)', text: 'Dieses Zauberbuch, mit allem was auf seinen Seiten geschrieben wurde, kann nicht durch Feuer oder das Eintauchen in Wasser beschädigt werden. Zusätzlich verfällt das Zauberbuch nicht durch Alterung.' }
     ]
   }
