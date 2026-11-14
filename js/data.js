@@ -21,7 +21,7 @@ window.WIZ_DEFAULT_CHAR = {
   baseAC: 10,
   mageArmorAC: 13,
   hitDie: 6,
-  hitDiceMax: 4,   // laut Bogen 4/4 (nach 5e-Regeln wären es bei Stufe 5 fünf; siehe Daten > Einstellungen)
+  hitDiceMax: 5,
   slotsMax: { 1: 4, 2: 3, 3: 2, 4: 0, 5: 0 },   // Stufe 5, laut Bogen und Dice Ex
   prepMax: null    // null = Int-Mod + Stufe
 };
@@ -29,7 +29,7 @@ window.WIZ_DEFAULT_CHAR = {
 window.WIZ_DEFAULT_STATE = {
   hp: 27,
   temp: 0,
-  hitDice: 4,
+  hitDice: 5,
   slotsUsed: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
   death: { s: 0, f: 0 },
   lastBackup: null,
@@ -291,7 +291,6 @@ window.WIZ_SPELLS = [
     comp: 'V, G, M (ein kleines, gerades Stück Eisen)', classes: 'Barde, Kleriker, Druide, Zauberer, Hexenmeister, Magier',
     text: 'Wähle einen Humanoiden in Reichweite, den du sehen kannst. Das Ziel muss einen Weisheitsrettungswurf ausführen oder es wird für die Wirkungsdauer gelähmt. Am Ende jedes seiner Züge kann das Ziel einen weiteren Weisheitsrettungswurf ausführen. Bei einem Erfolg endet die Wirkung des Zaubers auf das Ziel.',
     higher: 'Wirkst du diesen Zauber, indem du einen Zauberplatz des 3. Grades oder höher nutzt, kannst du für jeden Grad über dem 2. einen zusätzlichen Humanoiden als Ziel wählen. Deine humanoiden Ziele, die du festhältst, dürfen nicht mehr als neun Meter voneinander entfernt sein.',
-    house: 'In deinen Notizen steht „Ritual: Ja“. Im Spielerhandbuch (5e) ist Person festhalten kein Ritual.',
     roll: [{ kind: 'save', abil: 'WIS', half: false }]
   },
 
