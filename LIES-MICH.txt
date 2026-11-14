@@ -1,0 +1,20 @@
+Wizbolt, Begleiter für Electrognomus (Version 1)
+
+Inhalt: index.html, style.css, manifest.json, sw.js, Ordner js und icons.
+Alle Dateien müssen zusammen im selben Ordner liegen.
+
+AUF DEM IPAD NUTZEN (Weg über GitHub Pages, kostenlos)
+1. Auf github.com ein Konto anlegen und ein neues Repository erstellen (z. B. "wizbolt").
+   Hinweis: Bei kostenlosen Konten ist die Seite öffentlich erreichbar.
+   Lege deshalb keine Regel-PDFs oder private Texte dazu. Die Zaubertexte stecken in js/data.js.
+2. Den entpackten Ordnerinhalt hochladen (Add file > Upload files), dabei die Ordner js und icons mitnehmen.
+3. Im Repository: Settings > Pages > Source "Deploy from a branch", Branch "main", Ordner "/ (root)".
+4. Nach 1 bis 2 Minuten erscheint die Adresse der Seite. Auf dem iPad in Safari öffnen.
+5. Teilen-Symbol > "Zum Home-Bildschirm". Danach startet Wizbolt wie eine App und läuft offline.
+
+WICHTIG
+- Deine Daten (TP, Zauberplätze, Notizen) liegen nur im Browserspeicher des iPads.
+  Unter "Daten" regelmäßig "Sicherung speichern" drücken.
+- Neue Version einspielen: Dateien im Repository ersetzen und in sw.js die Nummer bei CACHE erhöhen
+  (z. B. wizbolt-v2). Dann lädt das iPad die neuen Dateien beim nächsten Öffnen mit Internet.
+- Hausregeln und Texte stehen in js/data.js. Der Schadensbonus lässt sich unter Daten ein- und ausschalten.
